@@ -41,7 +41,6 @@ if arquivo:
 
     # 🎛️ FILTROS
     colf1, colf2 = st.columns(2)
-
     ano = colf1.selectbox("Ano", sorted(df["ano"].dropna().unique()))
     mes = colf2.selectbox("Mês", sorted(df["mes"].dropna().unique()))
 
@@ -50,7 +49,7 @@ if arquivo:
     def fmt(v):
         return "R$ •••••" if ocultar else f"R$ {v:,.2f}"
 
-    # 📊 CONSOLIDADO ANUAL
+    # 📅 CONSOLIDADO ANUAL
     st.subheader("📅 Consolidado do Ano")
 
     df_ano = df[df["ano"] == ano]
@@ -59,18 +58,16 @@ if arquivo:
     saida_ano = df_ano[df_ano["valor"] < 0]["valor"].sum()
 
     c1, c2, c3 = st.columns(3)
-
     c1.metric("Receita Ano", fmt(entrada_ano))
     c2.metric("Despesa Ano", fmt(abs(saida_ano)))
     c3.metric("Resultado Ano", fmt(entrada_ano + saida_ano))
 
     # 📈 EVOLUÇÃO MENSAL
     st.subheader("📈 Evolução Mensal")
-
     mensal = df_ano.groupby("mes")["valor"].sum()
     st.line_chart(mensal)
 
-    # 📊 FILTRO MENSAL
+    # 📊 DADOS DO MÊS
     df_mes = df[(df["ano"] == ano) & (df["mes"] == mes)]
 
     entrada = df_mes[df_mes["valor"] > 0]["valor"].sum()
@@ -79,17 +76,26 @@ if arquivo:
     st.subheader("📊 Resultado do Mês")
 
     m1, m2, m3 = st.columns(3)
-
     m1.metric("Receita", fmt(entrada))
     m2.metric("Despesa", fmt(abs(saida)))
     m3.metric("Resultado", fmt(entrada + saida))
 
-    # 📊 GRÁFICO POR CATEGORIA (CORRIGIDO)
-    st.subheader("📊 Despesas por Categoria")
+    # 🔥 TOP 10 CATEGORIAS (AGORA LEGÍVEL)
+    st.subheader("📊 Top 10 Despesas")
 
-    cat = df_mes.groupby("categoria")["valor"].sum().abs().sort_values()
+    cat = df_mes.groupby("categoria")["valor"].sum().abs()
+    cat = cat.sort_values(ascending=False)
 
-    fig, ax = plt.subplots(figsize=(10,6))
-    cat.plot(kind="barh", ax=ax)
+    top10 = cat.head(10)
+    outros = pd.Series({"Outros": cat[10:].sum()})
 
-    st.pyplot(fig)
+    cat_final = pd.concat([top10, outros])
+
+    # encurtar nomes grandes
+    cat_final.index = [
+        str(i)[:25] + "..." if len(str(i)) > 25 else i
+        for i in cat_final.index
+    ]
+
+    fig, ax = plt.subplots(figsize=(8,5))
+    cat
