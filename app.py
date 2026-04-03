@@ -1,20 +1,22 @@
 import streamlit as st
 import pandas as pd
+import matplotlib.pyplot as plt
 
 st.set_page_config(layout="wide")
 
-# 🔐 Login simples
+# 🔐 LOGIN
 senha = st.text_input("Senha", type="password")
 
 if senha != "1234":
     st.stop()
 
-st.title("Dashboard Financeiro")
+st.title("📊 Dashboard Financeiro")
 
-# Upload
+# 📤 Upload
 arquivo = st.file_uploader("Envie seu Excel", type=["xlsx"])
 
 if arquivo:
+
     xls = pd.ExcelFile(arquivo)
     dados = []
 
@@ -31,31 +33,63 @@ if arquivo:
                     df["categoria"] = df["Tipo"]
 
                     dados.append(df)
+
             except:
                 pass
 
     df = pd.concat(dados)
 
-    # Filtros
-    ano = st.selectbox("Ano", sorted(df["ano"].dropna().unique()))
-    mes = st.selectbox("Mês", sorted(df["mes"].dropna().unique()))
+    # 🎛️ FILTROS
+    colf1, colf2 = st.columns(2)
 
-    df = df[(df["ano"] == ano) & (df["mes"] == mes)]
+    ano = colf1.selectbox("Ano", sorted(df["ano"].dropna().unique()))
+    mes = colf2.selectbox("Mês", sorted(df["mes"].dropna().unique()))
 
-    # Ocultar valores
-    ocultar = st.checkbox("Ocultar valores")
+    ocultar = st.checkbox("👁 Ocultar valores")
 
     def fmt(v):
         return "R$ •••••" if ocultar else f"R$ {v:,.2f}"
 
-    entrada = df[df["valor"] > 0]["valor"].sum()
-    saida = df[df["valor"] < 0]["valor"].sum()
+    # 📊 CONSOLIDADO ANUAL
+    st.subheader("📅 Consolidado do Ano")
 
-    col1, col2, col3 = st.columns(3)
+    df_ano = df[df["ano"] == ano]
 
-    col1.metric("Receita", fmt(entrada))
-    col2.metric("Despesa", fmt(abs(saida)))
-    col3.metric("Resultado", fmt(entrada + saida))
+    entrada_ano = df_ano[df_ano["valor"] > 0]["valor"].sum()
+    saida_ano = df_ano[df_ano["valor"] < 0]["valor"].sum()
 
-    st.subheader("Por categoria")
-    st.bar_chart(df.groupby("categoria")["valor"].sum().abs())
+    c1, c2, c3 = st.columns(3)
+
+    c1.metric("Receita Ano", fmt(entrada_ano))
+    c2.metric("Despesa Ano", fmt(abs(saida_ano)))
+    c3.metric("Resultado Ano", fmt(entrada_ano + saida_ano))
+
+    # 📈 EVOLUÇÃO MENSAL
+    st.subheader("📈 Evolução Mensal")
+
+    mensal = df_ano.groupby("mes")["valor"].sum()
+    st.line_chart(mensal)
+
+    # 📊 FILTRO MENSAL
+    df_mes = df[(df["ano"] == ano) & (df["mes"] == mes)]
+
+    entrada = df_mes[df_mes["valor"] > 0]["valor"].sum()
+    saida = df_mes[df_mes["valor"] < 0]["valor"].sum()
+
+    st.subheader("📊 Resultado do Mês")
+
+    m1, m2, m3 = st.columns(3)
+
+    m1.metric("Receita", fmt(entrada))
+    m2.metric("Despesa", fmt(abs(saida)))
+    m3.metric("Resultado", fmt(entrada + saida))
+
+    # 📊 GRÁFICO POR CATEGORIA (CORRIGIDO)
+    st.subheader("📊 Despesas por Categoria")
+
+    cat = df_mes.groupby("categoria")["valor"].sum().abs().sort_values()
+
+    fig, ax = plt.subplots(figsize=(10,6))
+    cat.plot(kind="barh", ax=ax)
+
+    st.pyplot(fig)
